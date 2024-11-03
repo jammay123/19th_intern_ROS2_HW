@@ -1,0 +1,35 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/jammay/robot_ws/install/image_recognition_msgs/include/**",
+        "/home/jammay/robot_ws/install/custom_interfaces/include/**",
+        "/opt/ros/humble/include/**",
+        "/home/jammay/robot_ws/src/chatter_cli/include/**",
+        "/home/jammay/robot_ws/src/control_turtle_pkg/include/**",
+        "/home/jammay/robot_ws/src/custom_interfaces/include/**",
+        "/home/jammay/robot_ws/src/gameplay/include/**",
+        "/home/jammay/robot_ws/src/image_recognition/image_projection/dual_fisheye_camera/include/**",
+        "/home/jammay/robot_ws/src/image_recognition/image_projection/pan_tilt_camera/include/**",
+        "/home/jammay/robot_ws/src/image_recognition/image_projection/usb_camera/include/**",
+        "/home/jammay/robot_ws/src/keypad/include/**",
+        "/home/jammay/robot_ws/src/my_chatter_pkg/include/**",
+        "/home/jammay/robot_ws/src/my_cpp_pkg/include/**",
+        "/home/jammay/robot_ws/src/play_turtlesim/include/**",
+        "/home/jammay/robot_ws/src/turtlesim_cli/include/**",
+        "/home/jammay/robot_ws/src/turtlesim_draw/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
