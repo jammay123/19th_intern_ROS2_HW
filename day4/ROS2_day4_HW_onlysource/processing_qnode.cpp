@@ -66,21 +66,20 @@ void ProcessingQNode::image_callback(const sensor_msgs::msg::Image::SharedPtr ms
         QImage safe_image3 = qimage3.copy();
         Q_EMIT imageCannyProcessed(safe_image3);
 
-    } catch (cv_bridge::Exception &e) {
+    }
+    catch (cv_bridge::Exception &e) {
         RCLCPP_ERROR(node->get_logger(), "Could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
     }
 }
 
-// 새로운 이미지 처리 함수 정의
 void ProcessingQNode::processImage(const cv::Mat &input_image, cv::Mat &output_image, cv::Mat &canny_output) {
-    // 1. 리사이즈 적용
     cv::Mat resized_image;
     cv::resize(input_image, resized_image, cv::Size(image_width_, image_height_));
 
-    // 2. 검은색 영역 필터링 및 사각형 검출
+    // 검은색 영역 필터링 및 사각형 검출
     cv::Mat gray_image, binary_image;
     cv::cvtColor(resized_image, gray_image, cv::COLOR_BGR2GRAY);
-    cv::inRange(gray_image, cv::Scalar(0, 0, 0), cv::Scalar(50, 50, 50), binary_image); // 검은색 필터링
+    cv::inRange(gray_image, cv::Scalar(0, 0, 0), cv::Scalar(50, 50, 50), binary_image);
 
     // 윤곽선 검출
     std::vector<std::vector<cv::Point>> contours;
@@ -92,12 +91,11 @@ void ProcessingQNode::processImage(const cv::Mat &input_image, cv::Mat &output_i
     std::vector<cv::Point> roi_points;
 
     for (const auto& contour : contours) {
-        // 다각형 근사화
         std::vector<cv::Point> approx;
         cv::approxPolyDP(contour, approx, cv::arcLength(contour, true) * 0.02, true);
 
         // 꼭짓점이 4개인 컨투어를 사각형으로 간주
-        if (approx.size() == 4 && cv::contourArea(approx) > 1000) { // 최소 면적 조건 추가
+        if (approx.size() == 4 && cv::contourArea(approx) > 1000) {
             roi_points = approx;
             roi_detected = true;
             break;
@@ -109,14 +107,16 @@ void ProcessingQNode::processImage(const cv::Mat &input_image, cv::Mat &output_i
         std::vector<std::vector<cv::Point>> fill_points = {roi_points};
         cv::fillPoly(mask, fill_points, cv::Scalar(255));
 
-        // ROI 경계선 그리기 (녹색 경계선)
+        // ROI 경계선
         cv::polylines(resized_image, fill_points, true, cv::Scalar(0, 255, 0), 2);
-    } else {
-        // 검출 실패 시 전체 이미지를 대상으로 설정
+    }
+
+    else {
+        // 검출 실패
         mask = cv::Mat::ones(resized_image.size(), CV_8UC1) * 255;
     }
 
-    // 3. HSV 변환 및 필터링
+    // HSV 필터
     cv::Mat hsv_frame, hsv_mask;
     cv::cvtColor(resized_image, hsv_frame, cv::COLOR_BGR2HSV);
     cv::inRange(hsv_frame,
@@ -126,7 +126,6 @@ void ProcessingQNode::processImage(const cv::Mat &input_image, cv::Mat &output_i
 
     cv::bitwise_and(resized_image, resized_image, output_image, mask & hsv_mask);
 
-    // 4. 에로전과 딜레이션 적용
     for (int i = 0; i < erode_cnt_; i++) {
         cv::erode(output_image, output_image, cv::Mat());
     }
@@ -134,7 +133,6 @@ void ProcessingQNode::processImage(const cv::Mat &input_image, cv::Mat &output_i
         cv::dilate(output_image, output_image, cv::Mat());
     }
 
-    // 5. Canny Edge Detection 적용 (흑백 이미지로 생성)
     cv::Canny(output_image, canny_output, canny_min_, canny_max_);
 }
 
