@@ -1,193 +1,367 @@
-#include "../include/control_cam_params/main_window.hpp"
+#include "../include/cam_params_pkg/main_window.hpp"
 
-MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWindowDesign)
+MainWindow::MainWindow(QWidget* parent)
+  : QMainWindow(parent), ui(new Ui::MainWindowDesign)
 {
   ui->setupUi(this);
 
-  QIcon icon("://ros-icon.png");
+  QIcon icon(":/images/icon.png");
   this->setWindowIcon(icon);
 
-  qnode = new QNode();
-  parameter_qnode = new ParameterQNode();
-  processing_qnode = new ProcessingQNode();
+  // ParameterImgNode 초기화 및 연결 설정
+  parameterImgNode = new ParameterImgNode(rclcpp::Node::make_shared("parameter_client_node"), this);
+  parameterImgNode->start();
 
-  QObject::connect(qnode, SIGNAL(rosShutDown()), this, SLOT(close()));
-  connect(processing_qnode, &ProcessingQNode::imageOriginal, this, &MainWindow::updateImageOriginal, Qt::QueuedConnection);
-  connect(processing_qnode, &ProcessingQNode::imageProcessed, this, &MainWindow::updateImageLabel, Qt::QueuedConnection);
-  connect(processing_qnode, &ProcessingQNode::imageCannyProcessed, this, &MainWindow::updateImageCannyLabel, Qt::QueuedConnection); // Canny 신호 연결
+  ui->hue_low_slider_1->setValue(0);
+  ui->hue_low_spinbox_1->setValue(0);
+  connect(ui->hue_low_slider_1, &QSlider::valueChanged, ui->hue_low_spinbox_1, &QSpinBox::setValue);
+  connect(ui->hue_low_spinbox_1, QOverload<int>::of(&QSpinBox::valueChanged), ui->hue_low_slider_1, &QSlider::setValue);
 
-  // 슬라이더 및 스핀박스 초기화 및 파라미터 설정
-  ui->hue_upper_slider->setValue(180);
-  ui->hue_upper_spinbox->setValue(180);
-  connect(ui->hue_upper_slider, &QSlider::valueChanged, this, &MainWindow::on_hue_upper_slider_valueChanged);
-  connect(ui->hue_upper_slider, &QSlider::valueChanged, ui->hue_upper_spinbox, &QSpinBox::setValue);
+  ui->hue_upp_slider_1->setValue(180);
+  ui->hue_upp_spinbox_1->setValue(180);
+  connect(ui->hue_upp_slider_1, &QSlider::valueChanged, ui->hue_upp_spinbox_1, &QSpinBox::setValue);
+  connect(ui->hue_upp_spinbox_1, QOverload<int>::of(&QSpinBox::valueChanged), ui->hue_upp_slider_1, &QSlider::setValue);
 
-  connect(ui->hue_upper_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->hue_upper_slider, &QSlider::setValue);
+  ui->satr_low_slider_1->setValue(0);
+  ui->satr_low_spinbox_1->setValue(0);
+  connect(ui->satr_low_slider_1, &QSlider::valueChanged, ui->satr_low_spinbox_1, &QSpinBox::setValue);
+  connect(ui->satr_low_spinbox_1, QOverload<int>::of(&QSpinBox::valueChanged), ui->satr_low_slider_1, &QSlider::setValue);
 
-  ui->hue_lower_slider->setValue(0);
-  ui->hue_lower_spinbox->setValue(180);
-  connect(ui->hue_lower_slider, &QSlider::valueChanged, this, &MainWindow::on_hue_lower_slider_valueChanged);
-  connect(ui->hue_lower_slider, &QSlider::valueChanged, ui->hue_lower_spinbox, &QSpinBox::setValue);
-  connect(ui->hue_lower_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->hue_lower_slider, &QSlider::setValue);
+  ui->satr_upp_slider_1->setValue(255);
+  ui->satr_upp_spinbox_1->setValue(255);
+  connect(ui->satr_upp_slider_1, &QSlider::valueChanged, ui->satr_upp_spinbox_1, &QSpinBox::setValue);
+  connect(ui->satr_upp_spinbox_1, QOverload<int>::of(&QSpinBox::valueChanged), ui->satr_upp_slider_1, &QSlider::setValue);
 
-  ui->satr_upper_slider->setValue(255);
-  ui->satr_upper_spinbox->setValue(255);
-  connect(ui->satr_upper_slider, &QSlider::valueChanged, this, &MainWindow::on_satr_upper_slider_valueChanged);
-  connect(ui->satr_upper_slider, &QSlider::valueChanged, ui->satr_upper_spinbox, &QSpinBox::setValue);
-  connect(ui->satr_upper_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->satr_upper_slider, &QSlider::setValue);
+  ui->val_low_slider_1->setValue(0);
+  ui->val_low_spinbox_1->setValue(0);
+  connect(ui->val_low_slider_1, &QSlider::valueChanged, ui->val_low_spinbox_1, &QSpinBox::setValue);
+  connect(ui->val_low_spinbox_1, QOverload<int>::of(&QSpinBox::valueChanged), ui->val_low_slider_1, &QSlider::setValue);
 
-  ui->satr_lower_slider->setValue(0);
-  ui->satr_lower_spinbox->setValue(0);
-  connect(ui->satr_lower_slider, &QSlider::valueChanged, this, &MainWindow::on_satr_lower_slider_valueChanged);
-  connect(ui->satr_lower_slider, &QSlider::valueChanged, ui->satr_lower_spinbox, &QSpinBox::setValue);
-  connect(ui->satr_lower_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->satr_lower_slider, &QSlider::setValue);
+  ui->val_upp_slider_1->setValue(255);
+  ui->val_upp_spinbox_1->setValue(255);
+  connect(ui->val_upp_slider_1, &QSlider::valueChanged, ui->val_upp_spinbox_1, &QSpinBox::setValue);
+  connect(ui->val_upp_spinbox_1, QOverload<int>::of(&QSpinBox::valueChanged), ui->val_upp_slider_1, &QSlider::setValue);
 
-  ui->value_upper_slider->setValue(255);
-  ui->value_upper_spinbox->setValue(255);
-  connect(ui->value_upper_slider, &QSlider::valueChanged, this, &MainWindow::on_value_upper_slider_valueChanged);
-  connect(ui->value_upper_slider, &QSlider::valueChanged, ui->value_upper_spinbox, &QSpinBox::setValue);
-  connect(ui->value_upper_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->value_upper_slider, &QSlider::setValue);
+  // Repeat for each set of sliders and spinboxes based on the image
+  ui->hue_low_slider_2->setValue(0);
+  ui->hue_low_spinbox_2->setValue(0);
+  connect(ui->hue_low_slider_2, &QSlider::valueChanged, ui->hue_low_spinbox_2, &QSpinBox::setValue);
+  connect(ui->hue_low_spinbox_2, QOverload<int>::of(&QSpinBox::valueChanged), ui->hue_low_slider_2, &QSlider::setValue);
 
-  ui->value_lower_slider->setValue(0);
-  ui->value_lower_spinbox->setValue(0);
-  connect(ui->value_lower_slider, &QSlider::valueChanged, this, &MainWindow::on_value_lower_slider_valueChanged);
-  connect(ui->value_lower_slider, &QSlider::valueChanged, ui->value_lower_spinbox, &QSpinBox::setValue);
-  connect(ui->value_lower_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->value_lower_slider, &QSlider::setValue);
+  ui->hue_upp_slider_2->setValue(180);
+  ui->hue_upp_spinbox_2->setValue(180);
+  connect(ui->hue_upp_slider_2, &QSlider::valueChanged, ui->hue_upp_spinbox_2, &QSpinBox::setValue);
+  connect(ui->hue_upp_spinbox_2, QOverload<int>::of(&QSpinBox::valueChanged), ui->hue_upp_slider_2, &QSlider::setValue);
 
-  ui->image_width_slider->setValue(640);
-  ui->img_width_spinbox->setValue(640);
-  connect(ui->image_width_slider, &QSlider::valueChanged, this, &MainWindow::on_image_width_slider_valueChanged);
-  connect(ui->image_width_slider, &QSlider::valueChanged, ui->img_width_spinbox, &QSpinBox::setValue);
-  connect(ui->img_width_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->image_width_slider, &QSlider::setValue);
+  ui->satr_low_slider_2->setValue(0);
+  ui->satr_low_spinbox_2->setValue(0);
+  connect(ui->satr_low_slider_2, &QSlider::valueChanged, ui->satr_low_spinbox_2, &QSpinBox::setValue);
+  connect(ui->satr_low_spinbox_2, QOverload<int>::of(&QSpinBox::valueChanged), ui->satr_low_slider_2, &QSlider::setValue);
 
-  ui->image_height_slider->setValue(360);
-  ui->img_height_spinbox->setValue(640);
-  connect(ui->image_height_slider, &QSlider::valueChanged, this, &MainWindow::on_image_height_slider_valueChanged);
-  connect(ui->image_height_slider, &QSlider::valueChanged, ui->img_height_spinbox, &QSpinBox::setValue);
-  connect(ui->img_height_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->image_height_slider, &QSlider::setValue);
+  ui->satr_upp_slider_2->setValue(255);
+  ui->satr_upp_spinbox_2->setValue(255);
+  connect(ui->satr_upp_slider_2, &QSlider::valueChanged, ui->satr_upp_spinbox_2, &QSpinBox::setValue);
+  connect(ui->satr_upp_spinbox_2, QOverload<int>::of(&QSpinBox::valueChanged), ui->satr_upp_slider_2, &QSlider::setValue);
 
-  ui->erode_cnt_slider->setValue(0);
-  ui->erode_cnt_spinbox->setValue(0);
-  connect(ui->erode_cnt_slider, &QSlider::valueChanged, this, &MainWindow::on_erode_cnt_slider_valueChanged);
-  connect(ui->erode_cnt_slider, &QSlider::valueChanged, ui->erode_cnt_spinbox, &QSpinBox::setValue);
-  connect(ui->erode_cnt_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->erode_cnt_slider, &QSlider::setValue);
+  ui->val_low_slider_2->setValue(0);
+  ui->val_low_spinbox_2->setValue(0);
+  connect(ui->val_low_slider_2, &QSlider::valueChanged, ui->val_low_spinbox_2, &QSpinBox::setValue);
+  connect(ui->val_low_spinbox_2, QOverload<int>::of(&QSpinBox::valueChanged), ui->val_low_slider_2, &QSlider::setValue);
 
+  ui->val_upp_slider_2->setValue(255);
+  ui->val_upp_spinbox_2->setValue(255);
+  connect(ui->val_upp_slider_2, &QSlider::valueChanged, ui->val_upp_spinbox_2, &QSpinBox::setValue);
+  connect(ui->val_upp_spinbox_2, QOverload<int>::of(&QSpinBox::valueChanged), ui->val_upp_slider_2, &QSlider::setValue);
 
-  ui->dilate_cnt_slider->setValue(0);
-  ui->dilate_cnt_spinbox->setValue(0);
-  connect(ui->dilate_cnt_slider, &QSlider::valueChanged, this, &MainWindow::on_dilate_cnt_slider_valueChanged);
-  connect(ui->dilate_cnt_slider, &QSlider::valueChanged, ui->dilate_cnt_spinbox, &QSpinBox::setValue);
-  connect(ui->dilate_cnt_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->dilate_cnt_slider, &QSlider::setValue);
+  ui->hue_low_slider_3->setValue(0);
+  ui->hue_low_spinbox_3->setValue(0);
+  connect(ui->hue_low_slider_3, &QSlider::valueChanged, ui->hue_low_spinbox_3, &QSpinBox::setValue);
+  connect(ui->hue_low_spinbox_3, QOverload<int>::of(&QSpinBox::valueChanged), ui->hue_low_slider_3, &QSlider::setValue);
 
-  ui->canny_max_slider->setValue(200);
-  ui->canny_max_spinbox->setValue(200);
-  connect(ui->canny_max_slider, &QSlider::valueChanged, this, &MainWindow::on_canny_max_slider_valueChanged);
-  connect(ui->canny_max_slider, &QSlider::valueChanged, ui->canny_max_spinbox, &QSpinBox::setValue);
-  connect(ui->canny_max_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->canny_max_slider, &QSlider::setValue);
+  ui->hue_upp_slider_3->setValue(180);
+  ui->hue_upp_spinbox_3->setValue(180);
+  connect(ui->hue_upp_slider_3, &QSlider::valueChanged, ui->hue_upp_spinbox_3, &QSpinBox::setValue);
+  connect(ui->hue_upp_spinbox_3, QOverload<int>::of(&QSpinBox::valueChanged), ui->hue_upp_slider_3, &QSlider::setValue);
 
-  ui->canny_min_slider->setValue(100);
-  ui->canny_min_spinbox->setValue(100);
-  connect(ui->canny_min_slider, &QSlider::valueChanged, this, &MainWindow::on_canny_min_slider_valueChanged);
-  connect(ui->canny_min_slider, &QSlider::valueChanged, ui->canny_min_spinbox, &QSpinBox::setValue);
-  connect(ui->canny_min_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->canny_min_slider, &QSlider::setValue);
+  ui->satr_low_slider_3->setValue(0);
+  ui->satr_low_spinbox_3->setValue(0);
+  connect(ui->satr_low_slider_3, &QSlider::valueChanged, ui->satr_low_spinbox_3, &QSpinBox::setValue);
+  connect(ui->satr_low_spinbox_3, QOverload<int>::of(&QSpinBox::valueChanged), ui->satr_low_slider_3, &QSlider::setValue);
+
+  ui->satr_upp_slider_3->setValue(255);
+  ui->satr_upp_spinbox_3->setValue(255);
+  connect(ui->satr_upp_slider_3, &QSlider::valueChanged, ui->satr_upp_spinbox_3, &QSpinBox::setValue);
+  connect(ui->satr_upp_spinbox_3, QOverload<int>::of(&QSpinBox::valueChanged), ui->satr_upp_slider_3, &QSlider::setValue);
+
+  ui->val_low_slider_3->setValue(0);
+  ui->val_low_spinbox_3->setValue(0);
+  connect(ui->val_low_slider_3, &QSlider::valueChanged, ui->val_low_spinbox_3, &QSpinBox::setValue);
+  connect(ui->val_low_spinbox_3, QOverload<int>::of(&QSpinBox::valueChanged), ui->val_low_slider_3, &QSlider::setValue);
+
+  ui->val_upp_slider_3->setValue(255);
+  ui->val_upp_spinbox_3->setValue(255);
+  connect(ui->val_upp_slider_3, &QSlider::valueChanged, ui->val_upp_spinbox_3, &QSpinBox::setValue);
+  connect(ui->val_upp_spinbox_3, QOverload<int>::of(&QSpinBox::valueChanged), ui->val_upp_slider_3, &QSlider::setValue);
+
+  ui->canny_low_slider->setValue(50);
+  ui->canny_low_spinbox->setValue(50);
+  connect(ui->canny_low_slider, &QSlider::valueChanged, ui->canny_low_spinbox, &QSpinBox::setValue);
+  connect(ui->canny_low_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->canny_low_slider, &QSlider::setValue);
+
+  ui->canny_upp_slider->setValue(150);
+  ui->canny_upp_spinbox->setValue(150);
+  connect(ui->canny_upp_slider, &QSlider::valueChanged, ui->canny_upp_spinbox, &QSpinBox::setValue);
+  connect(ui->canny_upp_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->canny_upp_slider, &QSlider::setValue);
+
+  ui->erode_slider->setValue(1);
+  ui->erode_spinbox->setValue(1);
+  connect(ui->erode_slider, &QSlider::valueChanged, ui->erode_spinbox, &QSpinBox::setValue);
+  connect(ui->erode_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->erode_slider, &QSlider::setValue);
+
+  ui->dilate_slider->setValue(1);
+  ui->dilate_spinbox->setValue(1);
+  connect(ui->dilate_slider, &QSlider::valueChanged, ui->dilate_spinbox, &QSpinBox::setValue);
+  connect(ui->dilate_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->dilate_slider, &QSlider::setValue);
+
+  // ROI initial values and connections
+  ui->roi_p1_x_slider->setValue(160);
+  ui->roi_p1_x_spinbox->setValue(160);
+  connect(ui->roi_p1_x_slider, &QSlider::valueChanged, ui->roi_p1_x_spinbox, &QSpinBox::setValue);
+  connect(ui->roi_p1_x_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->roi_p1_x_slider, &QSlider::setValue);
+
+  ui->roi_p1_y_slider->setValue(90);
+  ui->roi_p1_y_spinbox->setValue(90);
+  connect(ui->roi_p1_y_slider, &QSlider::valueChanged, ui->roi_p1_y_spinbox, &QSpinBox::setValue);
+  connect(ui->roi_p1_y_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->roi_p1_y_slider, &QSlider::setValue);
+
+  ui->roi_p2_x_slider->setValue(160);
+  ui->roi_p2_x_spinbox->setValue(160);
+  connect(ui->roi_p2_x_slider, &QSlider::valueChanged, ui->roi_p2_x_spinbox, &QSpinBox::setValue);
+  connect(ui->roi_p2_x_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->roi_p2_x_slider, &QSlider::setValue);
+
+  ui->roi_p2_y_slider->setValue(270);
+  ui->roi_p2_y_spinbox->setValue(270);
+  connect(ui->roi_p2_y_slider, &QSlider::valueChanged, ui->roi_p2_y_spinbox, &QSpinBox::setValue);
+  connect(ui->roi_p2_y_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->roi_p2_y_slider, &QSlider::setValue);
+
+  ui->roi_p3_x_slider->setValue(480);
+  ui->roi_p3_x_spinbox->setValue(480);
+  connect(ui->roi_p3_x_slider, &QSlider::valueChanged, ui->roi_p3_x_spinbox, &QSpinBox::setValue);
+  connect(ui->roi_p3_x_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->roi_p3_x_slider, &QSlider::setValue);
+
+  ui->roi_p3_y_slider->setValue(270);
+  ui->roi_p3_y_spinbox->setValue(270);
+  connect(ui->roi_p3_y_slider, &QSlider::valueChanged, ui->roi_p3_y_spinbox, &QSpinBox::setValue);
+  connect(ui->roi_p3_y_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->roi_p3_y_slider, &QSlider::setValue);
+
+  ui->roi_p4_x_slider->setValue(480);
+  ui->roi_p4_x_spinbox->setValue(480);
+  connect(ui->roi_p4_x_slider, &QSlider::valueChanged, ui->roi_p4_x_spinbox, &QSpinBox::setValue);
+  connect(ui->roi_p4_x_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->roi_p4_x_slider, &QSlider::setValue);
+
+  ui->roi_p4_y_slider->setValue(90);
+  ui->roi_p4_y_spinbox->setValue(90);
+  connect(ui->roi_p4_y_slider, &QSlider::valueChanged, ui->roi_p4_y_spinbox, &QSpinBox::setValue);
+  connect(ui->roi_p4_y_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->roi_p4_y_slider, &QSlider::setValue);
+
+  ui->width_slider->setValue(640);
+  ui->height_slider->setValue(360);
+  connect(ui->width_slider, &QSlider::valueChanged, ui->width_spinbox, &QSpinBox::setValue);
+  connect(ui->width_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->width_slider, &QSlider::setValue);
+  connect(ui->height_slider, &QSlider::valueChanged, ui->height_spinbox, &QSpinBox::setValue);
+  connect(ui->height_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), ui->height_slider, &QSlider::setValue);
+
+  // ROS 종료 시그널 처리
+  connect(parameterImgNode, &ParameterImgNode::finished, this, &MainWindow::close);
 }
 
 MainWindow::~MainWindow()
 {
   delete ui;
-  delete qnode;
-  delete parameter_qnode;
-  delete processing_qnode;  // processing_qnode 삭제 추가
 }
 
 void MainWindow::closeEvent(QCloseEvent* event)
 {
-    QMainWindow::closeEvent(event);  // 기본 close 이벤트 처리 호출
+  QMainWindow::closeEvent(event);
 }
 
-void MainWindow::updateImageLabel(const QImage &image)
+void MainWindow::on_hue_low_slider_1_valueChanged(int value)
 {
-    QPixmap pixmap = QPixmap::fromImage(image);
-    ui->img_label_2->setPixmap(pixmap);
-    ui->img_label_2->setAlignment(Qt::AlignCenter);
+    parameterImgNode->setParameter("hsv1_hue_low", value);
 }
 
-void MainWindow::updateImageCannyLabel(const QImage &image)
+void MainWindow::on_hue_upp_slider_1_valueChanged(int value)
 {
-    QPixmap pixmap = QPixmap::fromImage(image);
-    ui->img_label_3->setPixmap(pixmap);
-    ui->img_label_3->setAlignment(Qt::AlignCenter);
+    parameterImgNode->setParameter("hsv1_hue_upp", value);
 }
 
-void MainWindow::updateImageOriginal(const QImage &image)
+void MainWindow::on_satr_low_slider_1_valueChanged(int value)
 {
-    QPixmap pixmap = QPixmap::fromImage(image);
-    ui->img_label_1->setPixmap(pixmap.scaled(ui->img_label_1->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    ui->img_label_1->setAlignment(Qt::AlignCenter);
+    parameterImgNode->setParameter("hsv1_satr_low", value);
 }
 
-void MainWindow::on_hue_upper_slider_valueChanged(int value)
+void MainWindow::on_satr_upp_slider_1_valueChanged(int value)
 {
-  parameter_qnode->setHueUpper(value);
+    parameterImgNode->setParameter("hsv1_satr_upp", value);
 }
 
-void MainWindow::on_hue_lower_slider_valueChanged(int value)
+void MainWindow::on_val_low_slider_1_valueChanged(int value)
 {
-  parameter_qnode->setHueLower(value);
+    parameterImgNode->setParameter("hsv1_val_low", value);
 }
 
-void MainWindow::on_satr_upper_slider_valueChanged(int value)
+void MainWindow::on_val_upp_slider_1_valueChanged(int value)
 {
-  parameter_qnode->setSatrUpper(value);
+    parameterImgNode->setParameter("hsv1_val_upp", value);
 }
 
-void MainWindow::on_satr_lower_slider_valueChanged(int value)
+void MainWindow::on_hue_low_slider_2_valueChanged(int value)
 {
-  parameter_qnode->setSatrLower(value);
+    parameterImgNode->setParameter("hsv2_hue_low", value);
 }
 
-void MainWindow::on_value_upper_slider_valueChanged(int value)
+void MainWindow::on_hue_upp_slider_2_valueChanged(int value)
 {
-  parameter_qnode->setValUpper(value);
+    parameterImgNode->setParameter("hsv2_hue_upp", value);
 }
 
-void MainWindow::on_value_lower_slider_valueChanged(int value)
+void MainWindow::on_satr_low_slider_2_valueChanged(int value)
 {
-  parameter_qnode->setValLower(value);
+    parameterImgNode->setParameter("hsv2_satr_low", value);
 }
 
-void MainWindow::on_image_width_slider_valueChanged(int value)
+void MainWindow::on_satr_upp_slider_2_valueChanged(int value)
 {
-  parameter_qnode->setImgWidth(value);
+    parameterImgNode->setParameter("hsv2_satr_upp", value);
 }
 
-void MainWindow::on_image_height_slider_valueChanged(int value)
+void MainWindow::on_val_low_slider_2_valueChanged(int value)
 {
-  parameter_qnode->setImgHeight(value);
+    parameterImgNode->setParameter("hsv2_val_low", value);
 }
 
-
-void MainWindow::on_erode_cnt_slider_valueChanged(int value)
+void MainWindow::on_val_upp_slider_2_valueChanged(int value)
 {
-  parameter_qnode->setErodeCnt(value);
+    parameterImgNode->setParameter("hsv2_val_upp", value);
 }
 
-
-void MainWindow::on_dilate_cnt_slider_valueChanged(int value)
+void MainWindow::on_hue_low_slider_3_valueChanged(int value)
 {
-  parameter_qnode->setDilateCnt(value);
+    parameterImgNode->setParameter("hsv3_hue_low", value);
 }
 
-
-
-void MainWindow::on_canny_max_slider_valueChanged(int value)
+void MainWindow::on_hue_upp_slider_3_valueChanged(int value)
 {
-  parameter_qnode->setCannyMax(value);
+    parameterImgNode->setParameter("hsv3_hue_upp", value);
 }
 
-
-void MainWindow::on_canny_min_slider_valueChanged(int value)
+void MainWindow::on_satr_low_slider_3_valueChanged(int value)
 {
-  parameter_qnode->setCannyMax(value);
+    parameterImgNode->setParameter("hsv3_satr_low", value);
+}
+
+void MainWindow::on_satr_upp_slider_3_valueChanged(int value)
+{
+    parameterImgNode->setParameter("hsv3_satr_upp", value);
+}
+
+void MainWindow::on_val_low_slider_3_valueChanged(int value)
+{
+    parameterImgNode->setParameter("hsv3_val_low", value);
+}
+
+void MainWindow::on_val_upp_slider_3_valueChanged(int value)
+{
+    parameterImgNode->setParameter("hsv3_val_upp", value);
+}
+
+void MainWindow::on_canny_low_slider_valueChanged(int value)
+{
+    parameterImgNode->setParameter("canny_low", value);
+}
+
+void MainWindow::on_canny_upp_slider_valueChanged(int value)
+{
+    parameterImgNode->setParameter("canny_upp", value);
+}
+
+void MainWindow::on_erode_slider_valueChanged(int value)
+{
+    parameterImgNode->setParameter("erode_size", value);
+}
+
+void MainWindow::on_dilate_slider_valueChanged(int value)
+{
+    parameterImgNode->setParameter("dilate_size", value);
+}
+
+void MainWindow::on_roi_p1_x_slider_valueChanged(int value)
+{
+    parameterImgNode->setParameter("roi_p1_x", value);
+}
+
+void MainWindow::on_roi_p1_y_slider_valueChanged(int value)
+{
+    parameterImgNode->setParameter("roi_p1_y", value);
+}
+
+void MainWindow::on_roi_p2_x_slider_valueChanged(int value)
+{
+    parameterImgNode->setParameter("roi_p2_x", value);
+}
+
+void MainWindow::on_roi_p2_y_slider_valueChanged(int value)
+{
+    parameterImgNode->setParameter("roi_p2_y", value);
+}
+
+void MainWindow::on_roi_p3_x_slider_valueChanged(int value)
+{
+    parameterImgNode->setParameter("roi_p3_x", value);
+}
+
+void MainWindow::on_roi_p3_y_slider_valueChanged(int value)
+{
+    parameterImgNode->setParameter("roi_p3_y", value);
+}
+
+void MainWindow::on_roi_p4_x_slider_valueChanged(int value)
+{
+    parameterImgNode->setParameter("roi_p4_x", value);
+}
+
+void MainWindow::on_roi_p4_y_slider_valueChanged(int value)
+{
+    parameterImgNode->setParameter("roi_p4_y", value);
+}
+
+void MainWindow::on_width_slider_valueChanged(int value)
+{
+    parameterImgNode->setParameter("width", value);
+}
+
+void MainWindow::on_height_slider_valueChanged(int value)
+{
+    parameterImgNode->setParameter("height", value);
+}
+
+void MainWindow::on_hsv_chbox_1_stateChanged(int arg1)
+{
+    parameterImgNode->setParameter("hsv1_binary", arg1 == Qt::Checked ? 1 : 0);
+}
+
+void MainWindow::on_hsv_chbox_2_stateChanged(int arg1)
+{
+    parameterImgNode->setParameter("hsv2_binary", arg1 == Qt::Checked ? 1 : 0);
+}
+
+void MainWindow::on_hsv_chbox_3_stateChanged(int arg1)
+{
+    parameterImgNode->setParameter("hsv3_binary", arg1 == Qt::Checked ? 1 : 0);
+}
+
+void MainWindow::on_canny_chbox_stateChanged(int arg1)
+{
+    parameterImgNode->setParameter("all_edge", arg1 == Qt::Checked ? 1 : 0);
 }
 
